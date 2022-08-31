@@ -84,6 +84,7 @@ Adafruit_MQTT_Publish feed_fona_lipo = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME
 Adafruit_MQTT_Publish feed_external_temp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/external-temperature");
 Adafruit_MQTT_Publish feed_voltage = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/package-battery");
 Adafruit_MQTT_Publish feed_power = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/package-power");
+Adafruit_MQTT_Publish feed_rssi = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/rssi-strength");
 
 // THE SUBSCRIBING FEEDS -----------------------------------------------------------------------------
 Adafruit_MQTT_Subscribe feed_deploy = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/deploy");
@@ -104,6 +105,7 @@ Adafruit_MQTT_Subscribe feed_update_gps_sub = Adafruit_MQTT_Subscribe(&mqtt, AIO
 //Adafruit_MQTT_Publish feed_external_temp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/whs-2.external-temperature");
 //Adafruit_MQTT_Publish feed_voltage = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/whs-2.package-battery");
 //Adafruit_MQTT_Publish feed_power = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/whs-2.package-power");
+//Adafruit_MQTT_Publish feed_rssi = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/whs-2.rssi-strength");
 //
 //// THE SUBSCRIBING FEEDS -----------------------------------------------------------------------------
 //Adafruit_MQTT_Subscribe feed_deploy = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/whs-2.deploy");
@@ -351,7 +353,10 @@ void loop() {
   }
   Serial.println(F("Connected to cell network!"));
   digitalWrite(blueLed, HIGH);
-  readRSSI();
+
+  //  read the cell strength (RSSI), take the value for sending to the feed, and print to the serial monitor
+  int8_t rssi = readRSSI();
+  Serial.print(rssi); Serial.println(F(" dBm"));
 
   digitalWrite(yellowLed, HIGH);
 
@@ -521,7 +526,7 @@ void loop() {
     }
     if (gps_fails < 5) {
       digitalWrite(whiteLed, LOW);
-      Serial.println(F("Found 'eeeeem!"));
+      Serial.println(F("Found Location"));
       Serial.println(F("---------------------"));
       Serial.print(F("Latitude: ")); Serial.println(latitude, 6);
       Serial.print(F("Longitude: ")); Serial.println(longitude, 6);
@@ -555,6 +560,8 @@ void loop() {
   MQTT_publish_checkSuccess(feed_fona_lipo, lipoBuff);
   MQTT_publish_checkSuccess(feed_voltage, voltBuff);
   MQTT_publish_checkSuccess(feed_power, powerBuff);
+  MQTT_publish_checkSuccess(feed_rssi, rssi);
+  
 
   // reassign the sampling rate
   if (new_time == true) {
@@ -933,5 +940,6 @@ void readRSSI() {
   if ((n >= 2) && (n <= 30)) {
     r = map(n, 2, 30, -110, -54);
   }
-  Serial.print(r); Serial.println(F(" dBm"));
+  return r;
+  //Serial.print(r); Serial.println(F(" dBm"));
 }
