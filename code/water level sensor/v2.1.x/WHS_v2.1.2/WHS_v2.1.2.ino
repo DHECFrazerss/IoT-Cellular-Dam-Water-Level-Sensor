@@ -66,8 +66,8 @@ Adafruit_FONA_LTE fona = Adafruit_FONA_LTE();
 // MQTT SETUP WITH ADAFRUIT IO -----------------------------------------------------------------------
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883
-#define AIO_USERNAME    "YOUR AIO USER"
-#define AIO_KEY         "YOUR AIO KEY"
+#define AIO_USERNAME    "smitty444"
+#define AIO_KEY         "aio_OZav55eMxsRZUeGcoKMKEboB5LW8"
 
 // pass in fona class and server details to mqtt class
 Adafruit_MQTT_FONA mqtt(&fona, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
@@ -84,6 +84,7 @@ Adafruit_MQTT_Publish feed_fona_lipo = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME
 Adafruit_MQTT_Publish feed_external_temp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/external-temperature");
 Adafruit_MQTT_Publish feed_voltage = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/package-battery");
 Adafruit_MQTT_Publish feed_power = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/package-power");
+Adafruit_MQTT_Publish feed_rssi = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/rssi-strength");
 
 // THE SUBSCRIBING FEEDS -----------------------------------------------------------------------------
 Adafruit_MQTT_Subscribe feed_deploy = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/deploy");
@@ -104,6 +105,7 @@ Adafruit_MQTT_Subscribe feed_update_gps_sub = Adafruit_MQTT_Subscribe(&mqtt, AIO
 //Adafruit_MQTT_Publish feed_external_temp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/whs-2.external-temperature");
 //Adafruit_MQTT_Publish feed_voltage = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/whs-2.package-battery");
 //Adafruit_MQTT_Publish feed_power = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/whs-2.package-power");
+//Adafruit_MQTT_Publish feed_rssi = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/whs-2.rssi-strength");
 //
 //// THE SUBSCRIBING FEEDS -----------------------------------------------------------------------------
 //Adafruit_MQTT_Subscribe feed_deploy = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/whs-2.deploy");
@@ -264,6 +266,7 @@ void setup() {
   }
   Serial.println(F("Connected to cell network!"));
   digitalWrite(blueLed, HIGH);
+
   readRSSI();
 
   // first ensure that we are finished configuring everything in Adafruit IO and want the package to start collecting data
@@ -351,7 +354,20 @@ void loop() {
   }
   Serial.println(F("Connected to cell network!"));
   digitalWrite(blueLed, HIGH);
+
+  //  read the cell strength (RSSI), take the value for sending to the feed, and print to the serial monitor
   readRSSI();
+  uint8_t rssiRaw = fona.getRSSI();
+  int8_t rssiSimple;
+
+  if (rssiRaw == 0) rssiSimple = -115;
+  if (rssiRaw == 1) rssiSimple = -111;
+  if (rssiRaw == 31) rssiSimple = -52;
+  if ((rssiRaw >= 2) && (rssiRaw <= 30)) {
+    rssiSimple = map(rssiRaw, 2, 30, -110, -54);
+  }
+  char rssiBuff[6];
+  itoa(rssiSimple,rssiBuff,10);
 
   digitalWrite(yellowLed, HIGH);
 
@@ -521,7 +537,7 @@ void loop() {
     }
     if (gps_fails < 5) {
       digitalWrite(whiteLed, LOW);
-      Serial.println(F("Found 'eeeeem!"));
+      Serial.println(F("Found Location"));
       Serial.println(F("---------------------"));
       Serial.print(F("Latitude: ")); Serial.println(latitude, 6);
       Serial.print(F("Longitude: ")); Serial.println(longitude, 6);
@@ -555,6 +571,8 @@ void loop() {
   MQTT_publish_checkSuccess(feed_fona_lipo, lipoBuff);
   MQTT_publish_checkSuccess(feed_voltage, voltBuff);
   MQTT_publish_checkSuccess(feed_power, powerBuff);
+  MQTT_publish_checkSuccess(feed_rssi, rssiBuff);
+  
 
   // reassign the sampling rate
   if (new_time == true) {
@@ -934,4 +952,5 @@ void readRSSI() {
     r = map(n, 2, 30, -110, -54);
   }
   Serial.print(r); Serial.println(F(" dBm"));
+   
 }
